@@ -1,0 +1,38 @@
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid #d8d8d8;
+  text-align: left;
+}
+
+.table th {
+  background-color: #f1f1f1;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: #555;
+}
+
+.table-actions {
+  text-align: right;
+  width: 170px;
+}
+
+.button-danger {
+  background-color: #c84242;
+  border-color: #ac3535;
+  color: #fff;
+}
+
+.button-danger:hover {
+  background-color: #ac3535;
+}

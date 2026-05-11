@@ -1,0 +1,45 @@
+.app {
+  min-height: 100vh;
+}
+
+.main-content {
+  padding: 20px;
+}
+
+.page {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.page-header p {
+  margin: 4px 0 0;
+  color: #555;
+}
+
+.card {
+  background-color: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: none;
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 18px;
+}

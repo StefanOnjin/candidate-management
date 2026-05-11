@@ -1,0 +1,30 @@
+.navbar {
+  min-height: 56px;
+  background-color: #2f2f2f;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+}
+
+.navbar__brand {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.navbar__links {
+  display: flex;
+  gap: 14px;
+}
+
+.navbar__links a {
+  color: #ddd;
+  font-weight: 600;
+  padding-bottom: 2px;
+}
+
+.navbar__links a.active {
+  color: #fff;
+  border-bottom: 1px solid #fff;
+}
