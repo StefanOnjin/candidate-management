@@ -1,0 +1,25 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/
+TestResults/
+*.dll
+*.exe
+*.pdb
+
+# Node / Vite
+node_modules/
+dist/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+Thumbs.db
+.DS_Store

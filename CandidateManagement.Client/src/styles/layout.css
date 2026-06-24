@@ -4,6 +4,14 @@
 
 .main-content {
   padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.main-content__body {
+  min-width: 0;
 }
 
 .page {
@@ -42,4 +50,87 @@
   margin-top: 0;
   margin-bottom: 12px;
   font-size: 18px;
+}
+
+.activity-feed {
+  position: sticky;
+  top: 20px;
+  background-color: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 14px;
+}
+
+.activity-feed__header {
+  margin-bottom: 12px;
+}
+
+.activity-feed__header h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+
+.activity-feed__status {
+  display: inline-block;
+  font-size: 12px;
+  color: #555;
+  text-transform: capitalize;
+}
+
+.activity-feed__status--connected {
+  color: #137333;
+}
+
+.activity-feed__status--reconnecting {
+  color: #9a6700;
+}
+
+.activity-feed__status--disconnected {
+  color: #b3261e;
+}
+
+.activity-feed__empty {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.activity-feed__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.activity-feed__item {
+  border-top: 1px solid #e4e4e4;
+  padding-top: 10px;
+}
+
+.activity-feed__item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.activity-feed__item p {
+  margin: 0 0 4px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.activity-feed__item time {
+  color: #666;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-feed {
+    position: static;
+  }
 }

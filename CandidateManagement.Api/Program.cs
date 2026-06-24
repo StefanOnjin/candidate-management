@@ -1,4 +1,5 @@
 using CandidateManagement.Api.Data;
+using CandidateManagement.Api.Messaging;
 using Microsoft.EntityFrameworkCore;
 using CandidateManagement.Api.Repositories;
 using CandidateManagement.Api.Repositories.Interfaces;
@@ -10,6 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+
+builder.Services.Configure<RabbitMqOptions>(
+    builder.Configuration.GetSection("RabbitMq"));
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
@@ -23,6 +27,7 @@ builder.Services.AddScoped<ISkillRepository, SkillRepository>();
 //Services 
 builder.Services.AddScoped<ICandidateService, CandidateService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
+builder.Services.AddSingleton<IActivityEventPublisher, RabbitMqActivityEventPublisher>();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

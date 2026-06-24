@@ -1,4 +1,5 @@
 ﻿using CandidateManagement.Api.DTOs.Skills;
+using CandidateManagement.Api.Messaging;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
 using CandidateManagement.Api.Services;
@@ -9,12 +10,16 @@ namespace CandidateManagement.Tests.Services
     public class SkillServiceTests
     {
         private readonly Mock<ISkillRepository> _skillRepositoryMock;
+        private readonly Mock<IActivityEventPublisher> _activityEventPublisherMock;
         private readonly SkillService _skillService;
 
         public SkillServiceTests()
         {
             _skillRepositoryMock = new Mock<ISkillRepository>();
-            _skillService = new SkillService(_skillRepositoryMock.Object);
+            _activityEventPublisherMock = new Mock<IActivityEventPublisher>();
+            _skillService = new SkillService(
+                _skillRepositoryMock.Object,
+                _activityEventPublisherMock.Object);
         }
 
         [Fact]

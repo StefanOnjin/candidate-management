@@ -1,9 +1,11 @@
+using CandidateManagement.Api.Messaging;
 using CandidateManagement.Api.Services.Interfaces;
 using CandidateManagement.Api.DTOs.Candidates;
 using CandidateManagement.Api.DTOs.Common;
 using CandidateManagement.Api.DTOs.Skills;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
+using CandidateManagement.Messaging;
 
 namespace CandidateManagement.Api.Services
 {
@@ -11,13 +13,16 @@ namespace CandidateManagement.Api.Services
     {
         private readonly ICandidateRepository _candidateRepository;
         private readonly ISkillRepository _skillRepository;
+        private readonly IActivityEventPublisher _activityEventPublisher;
 
         public CandidateService(
             ICandidateRepository candidateRepository,
-            ISkillRepository skillRepository)
+            ISkillRepository skillRepository,
+            IActivityEventPublisher activityEventPublisher)
         {
             _candidateRepository = candidateRepository;
             _skillRepository = skillRepository;
+            _activityEventPublisher = activityEventPublisher;
         }
 
         public async Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(int page, int pageSize)
@@ -82,6 +87,15 @@ namespace CandidateManagement.Api.Services
 
             var createdCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
 
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.CandidateCreated,
+                EntityType = ActivityEntityTypes.Candidate,
+                EntityId = createdCandidate!.Id,
+                EntityName = createdCandidate.FullName,
+                Message = $"New candidate added: {createdCandidate.FullName}"
+            });
+
             return MapToResponseDto(createdCandidate!);
         }
 
@@ -130,6 +144,15 @@ namespace CandidateManagement.Api.Services
 
             var updatedCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
 
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.CandidateUpdated,
+                EntityType = ActivityEntityTypes.Candidate,
+                EntityId = updatedCandidate!.Id,
+                EntityName = updatedCandidate.FullName,
+                Message = $"Candidate updated: {updatedCandidate.FullName}"
+            });
+
             return MapToResponseDto(updatedCandidate!);
         }
 
@@ -140,8 +163,19 @@ namespace CandidateManagement.Api.Services
             if (candidate == null)
                 return false;
 
+            var candidateName = candidate.FullName;
+
             _candidateRepository.Delete(candidate);
             await _candidateRepository.SaveChangesAsync();
+
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.CandidateDeleted,
+                EntityType = ActivityEntityTypes.Candidate,
+                EntityId = id,
+                EntityName = candidateName,
+                Message = $"Candidate deleted: {candidateName}"
+            });
 
             return true;
         }
@@ -166,10 +200,26 @@ namespace CandidateManagement.Api.Services
             if (candidateSkill == null)
                 return false;
 
+            var skillName = candidateSkill.Skill.SkillName;
+
             candidate.CandidateSkills.Remove(candidateSkill);
 
             _candidateRepository.Update(candidate);
             await _candidateRepository.SaveChangesAsync();
+
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.CandidateSkillRemoved,
+                EntityType = ActivityEntityTypes.Candidate,
+                EntityId = candidate.Id,
+                EntityName = candidate.FullName,
+                Message = $"Skill removed from candidate {candidate.FullName}: {skillName}",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["skillId"] = skillId.ToString(),
+                    ["skillName"] = skillName
+                }
+            });
 
             return true;
         }

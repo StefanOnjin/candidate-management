@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import ActivityFeed from "./ActivityFeed";
 import Navbar from "./Navbar";
 
 function Layout() {
@@ -7,7 +8,11 @@ function Layout() {
       <Navbar />
 
       <main className="main-content">
-        <Outlet />
+        <div className="main-content__body">
+          <Outlet />
+        </div>
+
+        <ActivityFeed />
       </main>
     </div>
   );

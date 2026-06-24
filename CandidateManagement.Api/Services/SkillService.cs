@@ -1,17 +1,23 @@
 ﻿using CandidateManagement.Api.Services.Interfaces;
 using CandidateManagement.Api.DTOs.Skills;
+using CandidateManagement.Api.Messaging;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
+using CandidateManagement.Messaging;
 
 namespace CandidateManagement.Api.Services
 {
     public class SkillService : ISkillService
     {
         private readonly ISkillRepository _skillRepository;
+        private readonly IActivityEventPublisher _activityEventPublisher;
 
-        public SkillService(ISkillRepository skillRepository)
+        public SkillService(
+            ISkillRepository skillRepository,
+            IActivityEventPublisher activityEventPublisher)
         {
             _skillRepository = skillRepository;
+            _activityEventPublisher = activityEventPublisher;
         }
 
         public async Task<List<SkillResponseDto>> GetAllAsync()
@@ -48,6 +54,15 @@ namespace CandidateManagement.Api.Services
             await _skillRepository.AddAsync(skill);
             await _skillRepository.SaveChangesAsync();
 
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.SkillCreated,
+                EntityType = ActivityEntityTypes.Skill,
+                EntityId = skill.Id,
+                EntityName = skill.SkillName,
+                Message = $"New skill added: {skill.SkillName}"
+            });
+
             return MapToResponseDto(skill);
         }
 
@@ -74,6 +89,15 @@ namespace CandidateManagement.Api.Services
             _skillRepository.Update(skill);
             await _skillRepository.SaveChangesAsync();
 
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.SkillUpdated,
+                EntityType = ActivityEntityTypes.Skill,
+                EntityId = skill.Id,
+                EntityName = skill.SkillName,
+                Message = $"Skill updated: {skill.SkillName}"
+            });
+
             return MapToResponseDto(skill);
         }
 
@@ -89,8 +113,19 @@ namespace CandidateManagement.Api.Services
             if (isItAssigned)
                 throw new InvalidOperationException("Skill cannot be deleted because it is asigned to one or more candidates.");
 
+            var skillName = skill.SkillName;
+
             _skillRepository.Delete(skill);
             await _skillRepository.SaveChangesAsync();
+
+            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            {
+                EventType = ActivityEventTypes.SkillDeleted,
+                EntityType = ActivityEntityTypes.Skill,
+                EntityId = id,
+                EntityName = skillName,
+                Message = $"Skill deleted: {skillName}"
+            });
 
             return true;
         }

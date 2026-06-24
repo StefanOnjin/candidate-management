@@ -7,6 +7,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CandidateManagement.Api", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CandidateManagement.Tests", "..\CandidateManagement.Tests\CandidateManagement.Tests.csproj", "{2490B0AA-EE45-43C9-86B8-2CF36D16D178}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CandidateManagement.Messaging", "..\CandidateManagement.Messaging\CandidateManagement.Messaging.csproj", "{FB9F9D18-1E52-4A3D-9874-6A17065843A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CandidateManagement.Notifications", "..\CandidateManagement.Notifications\CandidateManagement.Notifications.csproj", "{8AD98748-9A8B-4B56-89D8-F13A308D061E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{2490B0AA-EE45-43C9-86B8-2CF36D16D178}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2490B0AA-EE45-43C9-86B8-2CF36D16D178}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2490B0AA-EE45-43C9-86B8-2CF36D16D178}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB9F9D18-1E52-4A3D-9874-6A17065843A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB9F9D18-1E52-4A3D-9874-6A17065843A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB9F9D18-1E52-4A3D-9874-6A17065843A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB9F9D18-1E52-4A3D-9874-6A17065843A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8AD98748-9A8B-4B56-89D8-F13A308D061E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8AD98748-9A8B-4B56-89D8-F13A308D061E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8AD98748-9A8B-4B56-89D8-F13A308D061E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8AD98748-9A8B-4B56-89D8-F13A308D061E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
