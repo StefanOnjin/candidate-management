@@ -12,6 +12,7 @@ function CandidatesPage() {
   const [openCandidateId, setOpenCandidateId] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [skills, setSkills] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const currentPage = Math.max(1, Number(searchParams.get("page")) || 1);
   const searchTerm = searchParams.get("search") ?? "";
@@ -27,6 +28,8 @@ function CandidatesPage() {
   }, [searchParams]);
 
   async function loadCandidates() {
+    setErrorMessage("");
+
     const params = {
       page: currentPage,
       pageSize: PAGE_SIZE,
@@ -46,6 +49,9 @@ function CandidatesPage() {
       setTotalCount(response.data.totalCount);
     } catch (error) {
       console.error("Failed to load candidates.", error);
+      setCandidates([]);
+      setTotalCount(0);
+      setErrorMessage("Failed to load candidates. Please try again.");
     }
   }
 
@@ -55,6 +61,8 @@ function CandidatesPage() {
       setSkills(response.data);
     } catch (error) {
       console.error("Failed to load skills.", error);
+      setSkills([]);
+      setErrorMessage("Failed to load filters. Please refresh the page.");
     }
   }
 
@@ -104,9 +112,12 @@ function CandidatesPage() {
 
     try {
       await deleteCandidate(id);
+      setErrorMessage("");
       await loadCandidates();
     } catch (error) {
-      alert(error.response?.data || "Failed to delete candidate.");
+      setErrorMessage(
+        error.response?.data || "Failed to delete candidate."
+      );
     }
   }
 
@@ -257,6 +268,13 @@ function CandidatesPage() {
           </div>
         )}
       </div>
+
+      {errorMessage && (
+        <div className="status-banner status-banner--error status-banner--floating" role="alert">
+          <strong className="status-banner__title">Something went wrong</strong>
+          <p className="status-banner__message">{errorMessage}</p>
+        </div>
+      )}
     </section>
   );
 }

@@ -6,6 +6,7 @@ function SkillsPage() {
   const [skills, setSkills] = useState([]);
   const [skillName, setSkillName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     loadSkills();
@@ -17,6 +18,8 @@ function SkillsPage() {
       setSkills(response.data);
     } catch (error) {
       console.error("Failed to load skills.", error);
+      setSkills([]);
+      setErrorMessage("Failed to load skills. Please refresh the page.");
     }
   }
 
@@ -24,11 +27,12 @@ function SkillsPage() {
     event.preventDefault();
 
     if (!skillName.trim()) {
-      alert("Skill name is required.");
+      setErrorMessage("Skill name is required.");
       return;
     }
 
     try {
+      setErrorMessage("");
       await createSkill({
         skillName: skillName.trim(),
       });
@@ -36,7 +40,7 @@ function SkillsPage() {
       setSkillName("");
       await loadSkills();
     } catch (error) {
-      alert(error.response?.data || "Failed to create skill.");
+      setErrorMessage(error.response?.data || "Failed to create skill.");
     }
   }
 
@@ -48,10 +52,11 @@ function SkillsPage() {
     if (!confirmed) return;
 
     try {
+      setErrorMessage("");
       await deleteSkill(id);
       await loadSkills();
     } catch (error) {
-      alert(error.response?.data || "Failed to delete skill.");
+      setErrorMessage(error.response?.data || "Failed to delete skill.");
     }
   }
 
@@ -131,6 +136,13 @@ function SkillsPage() {
           </table>
         )}
       </div>
+
+      {errorMessage && (
+        <div className="status-banner status-banner--error status-banner--floating" role="alert">
+          <strong className="status-banner__title">Something went wrong</strong>
+          <p className="status-banner__message">{errorMessage}</p>
+        </div>
+      )}
     </section>
   );
 }
