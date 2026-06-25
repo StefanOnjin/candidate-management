@@ -1,8 +1,8 @@
 import apiClient from "./apiClient";
 
-export function getCandidates(page = 1, pageSize = 10) {
+export function getCandidates(params = {}) {
   return apiClient.get("/candidates", {
-    params: { page, pageSize },
+    params,
   });
 }
 
@@ -20,10 +20,6 @@ export function updateCandidate(id, data) {
 
 export function deleteCandidate(id) {
   return apiClient.delete(`/candidates/${id}`);
-}
-
-export function searchCandidates(data) {
-  return apiClient.post("/candidates/search", data);
 }
 
 export function removeSkillFromCandidate(candidateId, skillId) {

@@ -1,4 +1,5 @@
-﻿using CandidateManagement.Api.Data;
+using CandidateManagement.Api.Data;
+using CandidateManagement.Api.DTOs.Candidates;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -22,19 +23,32 @@ namespace CandidateManagement.Api.Repositories
                 .ToListAsync();
         }
 
-        public async Task<(List<Candidate> Candidates, int TotalCount)> GetPagedAsync(int page, int pageSize)
+        public async Task<(List<Candidate> Candidates, int TotalCount)> GetPagedAsync(CandidateListQueryDto query)
         {
-            var query = _context.Candidates
+            var candidatesQuery = _context.Candidates
                 .Include(c => c.CandidateSkills)
                 .ThenInclude(cs => cs.Skill)
                 .OrderBy(c => c.Id)
                 .AsQueryable();
 
-            var totalCount = await query.CountAsync();
+            if (!string.IsNullOrWhiteSpace(query.Search))
+            {
+                var trimmedSearch = query.Search.Trim();
+                candidatesQuery = candidatesQuery.Where(c =>
+                    EF.Functions.ILike(c.FullName, $"%{trimmedSearch}%"));
+            }
 
-            var candidates = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
+            if (query.SkillId.HasValue)
+            {
+                candidatesQuery = candidatesQuery.Where(c =>
+                    c.CandidateSkills.Any(cs => cs.SkillId == query.SkillId.Value));
+            }
+
+            var totalCount = await candidatesQuery.CountAsync();
+
+            var candidates = await candidatesQuery
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize)
                 .ToListAsync();
 
             return (candidates, totalCount);
@@ -58,28 +72,6 @@ namespace CandidateManagement.Api.Repositories
         {
             return await _context.Candidates
                 .AnyAsync(c => c.EmailAddress == emailAddress);
-        }
-
-        public async Task<List<Candidate>> SearchAsync(string? fullName, List<int>? skillIds)
-        {
-            var candidates = _context.Candidates
-                .Include(c => c.CandidateSkills)
-                .ThenInclude(cs => cs.Skill)
-                .AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(fullName))
-            {
-                candidates = candidates.Where(c =>
-                    EF.Functions.ILike(c.FullName, $"%{fullName}%"));
-            }
-
-            if (skillIds != null && skillIds.Count > 0)
-            {
-                candidates = candidates.Where(c =>
-                    c.CandidateSkills.Any(cs => skillIds.Contains(cs.SkillId)));
-            }
-
-            return await candidates.ToListAsync();
         }
 
         public async Task AddAsync(Candidate candidate)

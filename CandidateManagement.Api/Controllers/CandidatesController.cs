@@ -16,9 +16,9 @@ namespace CandidateManagement.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        public async Task<ActionResult> GetAll([FromQuery] CandidateListQueryDto query)
         {
-            var candidates = await _candidateService.GetPagedAsync(page, pageSize);
+            var candidates = await _candidateService.GetPagedAsync(query);
 
             return Ok(candidates);
         }
@@ -80,14 +80,6 @@ namespace CandidateManagement.Api.Controllers
                 return NotFound($"Candidate with id {id} not found.");
 
             return NoContent();
-        }
-
-        [HttpPost("search")]
-        public async Task<ActionResult<List<CandidateResponseDto>>> Search(CandidateSearchDto dto)
-        {
-            var candidates = await _candidateService.SearchAsync(dto);
-
-            return Ok(candidates);
         }
 
         [HttpDelete("{candidateId}/skills/{skillId}")]

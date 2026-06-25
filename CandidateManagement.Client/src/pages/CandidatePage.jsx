@@ -1,31 +1,47 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { deleteCandidate, getCandidates, searchCandidates } from "../api/candidatesApi";
+import { Link, useSearchParams } from "react-router-dom";
+import { deleteCandidate, getCandidates } from "../api/candidatesApi";
 import { getSkills } from "../api/skillsApi";
 import SearchBar from "../components/SearchBar";
 
+const PAGE_SIZE = 6;
+
 function CandidatesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [candidates, setCandidates] = useState([]);
   const [openCandidateId, setOpenCandidateId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(6);
   const [totalCount, setTotalCount] = useState(0);
-  const [isSearchMode, setIsSearchMode] = useState(false);
   const [skills, setSkills] = useState([]);
-  const [selectedSkillId, setSelectedSkillId] = useState("");
+
+  const currentPage = Math.max(1, Number(searchParams.get("page")) || 1);
+  const searchTerm = searchParams.get("search") ?? "";
+  const selectedSkillId = searchParams.get("skillId") ?? "";
 
   useEffect(() => {
     loadSkills();
   }, []);
 
   useEffect(() => {
-    if (isSearchMode) return;
-    loadCandidates(currentPage);
-  }, [currentPage, isSearchMode]);
+    setOpenCandidateId(null);
+    loadCandidates();
+  }, [searchParams]);
 
-  async function loadCandidates(page) {
+  async function loadCandidates() {
+    const params = {
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+    };
+
+    if (searchTerm.trim()) {
+      params.search = searchTerm.trim();
+    }
+
+    if (selectedSkillId) {
+      params.skillId = Number(selectedSkillId);
+    }
+
     try {
-      const response = await getCandidates(page, pageSize);
+      const response = await getCandidates(params);
       setCandidates(response.data.items);
       setTotalCount(response.data.totalCount);
     } catch (error) {
@@ -42,33 +58,41 @@ function CandidatesPage() {
     }
   }
 
-  async function handleSearchByName(fullName) {
-    const skillIds = selectedSkillId ? [Number(selectedSkillId)] : [];
+  function updateListParams(nextValues) {
+    const nextParams = new URLSearchParams(searchParams);
 
-    if (!fullName && skillIds.length === 0) {
-      setIsSearchMode(false);
-      setCurrentPage(1);
-      await loadCandidates(1);
-      return;
-    }
+    Object.entries(nextValues).forEach(([key, value]) => {
+      if (value === "" || value === null || value === undefined) {
+        nextParams.delete(key);
+        return;
+      }
 
-    try {
-      const response = await searchCandidates({ fullName, skillIds });
-      setCandidates(response.data);
-      setTotalCount(response.data.length);
-      setOpenCandidateId(null);
-      setIsSearchMode(true);
-    } catch (error) {
-      alert(error.response?.data || "Failed to search candidates.");
-    }
+      nextParams.set(key, String(value));
+    });
+
+    setSearchParams(nextParams);
   }
 
-  async function handleClearSearch() {
-    setSelectedSkillId("");
-    setIsSearchMode(false);
-    setCurrentPage(1);
-    setOpenCandidateId(null);
-    await loadCandidates(1);
+  function handleSearchByName(fullName) {
+    updateListParams({
+      search: fullName,
+      page: 1,
+    });
+  }
+
+  function handleClearSearch() {
+    updateListParams({
+      search: "",
+      skillId: "",
+      page: 1,
+    });
+  }
+
+  function handleSkillFilterChange(event) {
+    updateListParams({
+      skillId: event.target.value,
+      page: 1,
+    });
   }
 
   async function handleDeleteCandidate(id) {
@@ -80,7 +104,7 @@ function CandidatesPage() {
 
     try {
       await deleteCandidate(id);
-      await loadCandidates(currentPage);
+      await loadCandidates();
     } catch (error) {
       alert(error.response?.data || "Failed to delete candidate.");
     }
@@ -90,12 +114,14 @@ function CandidatesPage() {
     setOpenCandidateId((currentId) => (currentId === id ? null : id));
   }
 
-  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   function goToPage(page) {
     if (page < 1 || page > totalPages) return;
-    setOpenCandidateId(null);
-    setCurrentPage(page);
+
+    updateListParams({
+      page,
+    });
   }
 
   return (
@@ -118,7 +144,7 @@ function CandidatesPage() {
           <select
             id="skillFilter"
             value={selectedSkillId}
-            onChange={(event) => setSelectedSkillId(event.target.value)}
+            onChange={handleSkillFilterChange}
           >
             <option value="">All skills</option>
             {skills.map((skill) => (
@@ -132,6 +158,7 @@ function CandidatesPage() {
         <SearchBar
           label="Search candidate by name (optional)"
           placeholder="Example: Djordje Djordjevic"
+          initialValue={searchTerm}
           onSearch={handleSearchByName}
           onClear={handleClearSearch}
         />
@@ -195,40 +222,38 @@ function CandidatesPage() {
               })}
             </div>
 
-            {!isSearchMode && (
-              <div className="pagination">
-                <button
-                  type="button"
-                  className="button-small pagination-button"
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </button>
+            <div className="pagination">
+              <button
+                type="button"
+                className="button-small pagination-button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Previous
+              </button>
 
-                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-                  (page) => (
-                    <button
-                      type="button"
-                      key={page}
-                      className={`button-small pagination-button ${page === currentPage ? "is-active" : ""}`}
-                      onClick={() => goToPage(page)}
-                    >
-                      {page}
-                    </button>
-                  )
-                )}
+              {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                (page) => (
+                  <button
+                    type="button"
+                    key={page}
+                    className={`button-small pagination-button ${page === currentPage ? "is-active" : ""}`}
+                    onClick={() => goToPage(page)}
+                  >
+                    {page}
+                  </button>
+                )
+              )}
 
-                <button
-                  type="button"
-                  className="button-small pagination-button"
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                className="button-small pagination-button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

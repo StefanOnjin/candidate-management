@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function SearchBar({
   label = "Search",
@@ -9,6 +9,10 @@ function SearchBar({
   onClear,
 }) {
   const [value, setValue] = useState(initialValue);
+
+  useEffect(() => {
+    setValue(initialValue);
+  }, [initialValue]);
 
   function handleSubmit(event) {
     event.preventDefault();

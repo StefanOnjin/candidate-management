@@ -25,16 +25,24 @@ namespace CandidateManagement.Api.Services
             _activityEventPublisher = activityEventPublisher;
         }
 
-        public async Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(int page, int pageSize)
+        public async Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(CandidateListQueryDto query)
         {
-            var safePage = page < 1 ? 1 : page;
-            var safePageSize = pageSize < 1 ? 10 : pageSize;
+            var safePage = query.Page < 1 ? 1 : query.Page;
+            var safePageSize = query.PageSize < 1 ? 10 : query.PageSize;
             var maxPageSize = 50;
 
             if (safePageSize > maxPageSize)
                 safePageSize = maxPageSize;
 
-            var (candidates, totalCount) = await _candidateRepository.GetPagedAsync(safePage, safePageSize);
+            var normalizedQuery = new CandidateListQueryDto
+            {
+                Search = query.Search,
+                SkillId = query.SkillId,
+                Page = safePage,
+                PageSize = safePageSize
+            };
+
+            var (candidates, totalCount) = await _candidateRepository.GetPagedAsync(normalizedQuery);
 
             return new PagedResultDto<CandidateResponseDto>
             {
@@ -178,13 +186,6 @@ namespace CandidateManagement.Api.Services
             });
 
             return true;
-        }
-
-        public async Task<List<CandidateResponseDto>> SearchAsync(CandidateSearchDto dto)
-        {
-            var candidates = await _candidateRepository.SearchAsync(dto.FullName, dto.SkillIds);
-
-            return candidates.Select(MapToResponseDto).ToList();
         }
 
         public async Task<bool> RemoveSkillFromCandidateAsync(int candidateId, int skillId)

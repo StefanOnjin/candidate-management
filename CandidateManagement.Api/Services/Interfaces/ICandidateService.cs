@@ -5,7 +5,7 @@ namespace CandidateManagement.Api.Services.Interfaces
 {
     public interface ICandidateService
     {
-        Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(int page, int pageSize);
+        Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(CandidateListQueryDto query);
 
         Task<CandidateResponseDto?> GetByIdAsync(int id);
 
@@ -14,8 +14,6 @@ namespace CandidateManagement.Api.Services.Interfaces
         Task<CandidateResponseDto?> UpdateAsync(int id, UpdateCandidateDto dto);
 
         Task<bool> DeleteAsync(int id);
-
-        Task<List<CandidateResponseDto>> SearchAsync(CandidateSearchDto dto);
 
         Task<bool> RemoveSkillFromCandidateAsync(int candidateId, int skillId);
     }
