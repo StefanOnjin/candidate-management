@@ -14,15 +14,18 @@ namespace CandidateManagement.Api.Services
         private readonly ICandidateRepository _candidateRepository;
         private readonly ISkillRepository _skillRepository;
         private readonly IActivityEventPublisher _activityEventPublisher;
+        private readonly IActivityLogService _activityLogService;
 
         public CandidateService(
             ICandidateRepository candidateRepository,
             ISkillRepository skillRepository,
-            IActivityEventPublisher activityEventPublisher)
+            IActivityEventPublisher activityEventPublisher,
+            IActivityLogService activityLogService)
         {
             _candidateRepository = candidateRepository;
             _skillRepository = skillRepository;
             _activityEventPublisher = activityEventPublisher;
+            _activityLogService = activityLogService;
         }
 
         public async Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(CandidateListQueryDto query)
@@ -95,14 +98,16 @@ namespace CandidateManagement.Api.Services
 
             var createdCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.CandidateCreated,
                 EntityType = ActivityEntityTypes.Candidate,
                 EntityId = createdCandidate!.Id,
                 EntityName = createdCandidate.FullName,
                 Message = $"New candidate added: {createdCandidate.FullName}"
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return MapToResponseDto(createdCandidate!);
         }
@@ -152,14 +157,16 @@ namespace CandidateManagement.Api.Services
 
             var updatedCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.CandidateUpdated,
                 EntityType = ActivityEntityTypes.Candidate,
                 EntityId = updatedCandidate!.Id,
                 EntityName = updatedCandidate.FullName,
                 Message = $"Candidate updated: {updatedCandidate.FullName}"
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return MapToResponseDto(updatedCandidate!);
         }
@@ -176,14 +183,16 @@ namespace CandidateManagement.Api.Services
             _candidateRepository.Delete(candidate);
             await _candidateRepository.SaveChangesAsync();
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.CandidateDeleted,
                 EntityType = ActivityEntityTypes.Candidate,
                 EntityId = id,
                 EntityName = candidateName,
                 Message = $"Candidate deleted: {candidateName}"
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return true;
         }
@@ -208,7 +217,7 @@ namespace CandidateManagement.Api.Services
             _candidateRepository.Update(candidate);
             await _candidateRepository.SaveChangesAsync();
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.CandidateSkillRemoved,
                 EntityType = ActivityEntityTypes.Candidate,
@@ -220,9 +229,17 @@ namespace CandidateManagement.Api.Services
                     ["skillId"] = skillId.ToString(),
                     ["skillName"] = skillName
                 }
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return true;
+        }
+
+        private async Task SaveAndPublishActivityAsync(ActivityEvent activityEvent)
+        {
+            await _activityLogService.SaveActivityLogAsync(activityEvent);
+            await _activityEventPublisher.PublishAsync(activityEvent);
         }
 
         private static CandidateResponseDto MapToResponseDto(Candidate candidate)

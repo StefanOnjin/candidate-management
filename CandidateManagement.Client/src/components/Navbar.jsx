@@ -8,6 +8,7 @@ function Navbar() {
       <div className="navbar__links">
         <NavLink to="/candidates">Candidates</NavLink>
         <NavLink to="/skills">Skills</NavLink>
+        <NavLink to="/activities">Activities</NavLink>
       </div>
     </nav>
   );

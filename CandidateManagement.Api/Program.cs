@@ -23,10 +23,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 //Repos 
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
 builder.Services.AddScoped<ISkillRepository, SkillRepository>();
+builder.Services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
 
 //Services 
 builder.Services.AddScoped<ICandidateService, CandidateService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 builder.Services.AddSingleton<IActivityEventPublisher, RabbitMqActivityEventPublisher>();
 
 

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import Layout from "./components/Layout";
+import ActivitiesPage from "./pages/ActivitiesPage";
 import CandidatePage from "./pages/CandidatePage";
 import CandidateFormPage from "./pages/CandidateFormPage";
 import SkillPage from "./pages/SkillPage";
@@ -16,6 +17,7 @@ function App() {
         <Route path="candidates/edit/:id" element={<CandidateFormPage />} />
 
         <Route path="skills" element={<SkillPage />} />
+        <Route path="activities" element={<ActivitiesPage />} />
       </Route>
     </Routes>
   );

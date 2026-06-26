@@ -12,6 +12,7 @@ namespace CandidateManagement.Api.Data
         public DbSet<Candidate> Candidates { get; set; } 
         public DbSet<Skill> Skills { get; set; } 
         public DbSet<CandidateSkill> CandidateSkills { get; set; }
+        public DbSet<ActivityLog> ActivityLogs { get; set; } 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -69,6 +70,42 @@ namespace CandidateManagement.Api.Data
                     .WithMany(s => s.CandidateSkills)
                     .HasForeignKey(cs => cs.SkillId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ActivityLog>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+
+                entity.Property(a => a.EventId)
+                    .IsRequired();
+
+                entity.Property(a => a.EventType)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(a => a.EntityType)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(a => a.EntityId)
+                    .IsRequired();
+
+                entity.Property(a => a.EntityName)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(a => a.Message)
+                    .IsRequired()
+                    .HasMaxLength(300);
+
+                entity.Property(a => a.OccurredAtUtc)
+                    .IsRequired();
+
+                entity.HasIndex(a => a.OccurredAtUtc);
+
+                entity.HasIndex(a => a.EventId)
+                    .IsUnique();
+
             });
         }
     }

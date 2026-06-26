@@ -11,13 +11,16 @@ namespace CandidateManagement.Api.Services
     {
         private readonly ISkillRepository _skillRepository;
         private readonly IActivityEventPublisher _activityEventPublisher;
+        private readonly IActivityLogService _activityLogService;
 
         public SkillService(
             ISkillRepository skillRepository,
-            IActivityEventPublisher activityEventPublisher)
+            IActivityEventPublisher activityEventPublisher,
+            IActivityLogService activityLogService)
         {
             _skillRepository = skillRepository;
             _activityEventPublisher = activityEventPublisher;
+            _activityLogService = activityLogService;
         }
 
         public async Task<List<SkillResponseDto>> GetAllAsync()
@@ -54,14 +57,16 @@ namespace CandidateManagement.Api.Services
             await _skillRepository.AddAsync(skill);
             await _skillRepository.SaveChangesAsync();
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.SkillCreated,
                 EntityType = ActivityEntityTypes.Skill,
                 EntityId = skill.Id,
                 EntityName = skill.SkillName,
                 Message = $"New skill added: {skill.SkillName}"
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return MapToResponseDto(skill);
         }
@@ -89,14 +94,16 @@ namespace CandidateManagement.Api.Services
             _skillRepository.Update(skill);
             await _skillRepository.SaveChangesAsync();
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.SkillUpdated,
                 EntityType = ActivityEntityTypes.Skill,
                 EntityId = skill.Id,
                 EntityName = skill.SkillName,
                 Message = $"Skill updated: {skill.SkillName}"
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return MapToResponseDto(skill);
         }
@@ -118,16 +125,24 @@ namespace CandidateManagement.Api.Services
             _skillRepository.Delete(skill);
             await _skillRepository.SaveChangesAsync();
 
-            await _activityEventPublisher.PublishAsync(new ActivityEvent
+            var activityEvent = new ActivityEvent
             {
                 EventType = ActivityEventTypes.SkillDeleted,
                 EntityType = ActivityEntityTypes.Skill,
                 EntityId = id,
                 EntityName = skillName,
                 Message = $"Skill deleted: {skillName}"
-            });
+            };
+
+            await SaveAndPublishActivityAsync(activityEvent);
 
             return true;
+        }
+
+        private async Task SaveAndPublishActivityAsync(ActivityEvent activityEvent)
+        {
+            await _activityLogService.SaveActivityLogAsync(activityEvent);
+            await _activityEventPublisher.PublishAsync(activityEvent);
         }
 
         private static SkillResponseDto MapToResponseDto(Skill skill)
