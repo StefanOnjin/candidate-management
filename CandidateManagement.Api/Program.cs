@@ -24,12 +24,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<ICandidateRepository, CandidateRepository>();
 builder.Services.AddScoped<ISkillRepository, SkillRepository>();
 builder.Services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+builder.Services.AddScoped<IOutboxRepository, OutboxRepository>();
 
 //Services 
 builder.Services.AddScoped<ICandidateService, CandidateService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
 builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
+builder.Services.AddScoped<IOutboxService, OutboxService>();
+builder.Services.AddScoped<ITransactionManager, TransactionManager>();
 builder.Services.AddSingleton<IActivityEventPublisher, RabbitMqActivityEventPublisher>();
+builder.Services.AddHostedService<OutboxProcessorBackgroundService>();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

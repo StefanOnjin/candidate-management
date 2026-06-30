@@ -13,7 +13,7 @@ namespace CandidateManagement.Api.Data
         public DbSet<Skill> Skills { get; set; } 
         public DbSet<CandidateSkill> CandidateSkills { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; } 
-
+        public DbSet<OutboxMessage> OutboxMessages { get; set; } 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -106,6 +106,39 @@ namespace CandidateManagement.Api.Data
                 entity.HasIndex(a => a.EventId)
                     .IsUnique();
 
+            });
+
+            modelBuilder.Entity<OutboxMessage>(entity =>
+            {
+                entity.HasKey(o => o.Id);
+
+                entity.Property(o => o.EventId)
+                    .IsRequired();
+
+                entity.Property(o => o.EventType)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(o => o.Payload)
+                    .IsRequired();
+
+                entity.Property(o => o.OccurredAtUtc)
+                    .IsRequired();
+
+                entity.Property(o => o.ProcessedAtUtc);
+
+                entity.Property(o => o.RetryCount)
+                    .IsRequired();
+
+                entity.Property(o => o.Error)
+                    .HasMaxLength(1000);
+
+                entity.HasIndex(o => o.EventId)
+                    .IsUnique();
+
+                entity.HasIndex(o => o.ProcessedAtUtc);
+
+                entity.HasIndex(o => o.OccurredAtUtc);
             });
         }
     }

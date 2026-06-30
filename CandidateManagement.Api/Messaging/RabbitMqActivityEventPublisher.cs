@@ -56,6 +56,7 @@ namespace CandidateManagement.Api.Messaging
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to publish activity event {EventType}.", activityEvent.EventType);
+                throw;
             }
 
             return Task.CompletedTask;

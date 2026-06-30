@@ -1,4 +1,3 @@
-using CandidateManagement.Api.Messaging;
 using CandidateManagement.Api.Services.Interfaces;
 using CandidateManagement.Api.DTOs.Candidates;
 using CandidateManagement.Api.DTOs.Common;
@@ -13,19 +12,22 @@ namespace CandidateManagement.Api.Services
     {
         private readonly ICandidateRepository _candidateRepository;
         private readonly ISkillRepository _skillRepository;
-        private readonly IActivityEventPublisher _activityEventPublisher;
         private readonly IActivityLogService _activityLogService;
+        private readonly IOutboxService _outboxService;
+        private readonly ITransactionManager _transactionManager;
 
         public CandidateService(
             ICandidateRepository candidateRepository,
             ISkillRepository skillRepository,
-            IActivityEventPublisher activityEventPublisher,
-            IActivityLogService activityLogService)
+            IActivityLogService activityLogService,
+            IOutboxService outboxService,
+            ITransactionManager transactionManager)
         {
             _candidateRepository = candidateRepository;
             _skillRepository = skillRepository;
-            _activityEventPublisher = activityEventPublisher;
             _activityLogService = activityLogService;
+            _outboxService = outboxService;
+            _transactionManager = transactionManager;
         }
 
         public async Task<PagedResultDto<CandidateResponseDto>> GetPagedAsync(CandidateListQueryDto query)
@@ -81,35 +83,38 @@ namespace CandidateManagement.Api.Services
             if (skills.Count != skillIds.Count)
                 throw new InvalidOperationException("One or more skills do not exist.");
 
-            var candidate = new Candidate
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                FullName = dto.FullName.Trim(),
-                DateOfBirth = dto.DateOfBirth,
-                ContactNumber = dto.ContactNumber.Trim(),
-                EmailAddress = normalizedEmail,
-                CandidateSkills = skillIds.Select(skillId => new CandidateSkill
+                var candidate = new Candidate
                 {
-                    SkillId = skillId
-                }).ToList()
-            };
+                    FullName = dto.FullName.Trim(),
+                    DateOfBirth = dto.DateOfBirth,
+                    ContactNumber = dto.ContactNumber.Trim(),
+                    EmailAddress = normalizedEmail,
+                    CandidateSkills = skillIds.Select(skillId => new CandidateSkill
+                    {
+                        SkillId = skillId
+                    }).ToList()
+                };
 
-            await _candidateRepository.AddAsync(candidate);
-            await _candidateRepository.SaveChangesAsync();
+                await _candidateRepository.AddAsync(candidate);
+                await _candidateRepository.SaveChangesAsync();
 
-            var createdCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
+                var createdCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
 
-            var activityEvent = new ActivityEvent
-            {
-                EventType = ActivityEventTypes.CandidateCreated,
-                EntityType = ActivityEntityTypes.Candidate,
-                EntityId = createdCandidate!.Id,
-                EntityName = createdCandidate.FullName,
-                Message = $"New candidate added: {createdCandidate.FullName}"
-            };
+                var activityEvent = new ActivityEvent
+                {
+                    EventType = ActivityEventTypes.CandidateCreated,
+                    EntityType = ActivityEntityTypes.Candidate,
+                    EntityId = createdCandidate!.Id,
+                    EntityName = createdCandidate.FullName,
+                    Message = $"New candidate added: {createdCandidate.FullName}"
+                };
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                await SaveActivityAsync(activityEvent);
 
-            return MapToResponseDto(createdCandidate!);
+                return MapToResponseDto(createdCandidate!);
+            });
         }
 
         public async Task<CandidateResponseDto?> UpdateAsync(int id, UpdateCandidateDto dto)
@@ -136,39 +141,42 @@ namespace CandidateManagement.Api.Services
             if (skills.Count != skillIds.Count)
                 throw new InvalidOperationException("One or more skills do not exist.");
 
-            candidate.FullName = dto.FullName.Trim();
-            candidate.DateOfBirth = dto.DateOfBirth;
-            candidate.ContactNumber = dto.ContactNumber.Trim();
-            candidate.EmailAddress = normalizedEmail;
-
-            candidate.CandidateSkills.Clear();
-
-            foreach (var skillId in skillIds)
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                candidate.CandidateSkills.Add(new CandidateSkill
+                candidate.FullName = dto.FullName.Trim();
+                candidate.DateOfBirth = dto.DateOfBirth;
+                candidate.ContactNumber = dto.ContactNumber.Trim();
+                candidate.EmailAddress = normalizedEmail;
+
+                candidate.CandidateSkills.Clear();
+
+                foreach (var skillId in skillIds)
                 {
-                    CandidateId = candidate.Id,
-                    SkillId = skillId
-                });
-            }
+                    candidate.CandidateSkills.Add(new CandidateSkill
+                    {
+                        CandidateId = candidate.Id,
+                        SkillId = skillId
+                    });
+                }
 
-            _candidateRepository.Update(candidate);
-            await _candidateRepository.SaveChangesAsync();
+                _candidateRepository.Update(candidate);
+                await _candidateRepository.SaveChangesAsync();
 
-            var updatedCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
+                var updatedCandidate = await _candidateRepository.GetByIdWithSkillsAsync(candidate.Id);
 
-            var activityEvent = new ActivityEvent
-            {
-                EventType = ActivityEventTypes.CandidateUpdated,
-                EntityType = ActivityEntityTypes.Candidate,
-                EntityId = updatedCandidate!.Id,
-                EntityName = updatedCandidate.FullName,
-                Message = $"Candidate updated: {updatedCandidate.FullName}"
-            };
+                var activityEvent = new ActivityEvent
+                {
+                    EventType = ActivityEventTypes.CandidateUpdated,
+                    EntityType = ActivityEntityTypes.Candidate,
+                    EntityId = updatedCandidate!.Id,
+                    EntityName = updatedCandidate.FullName,
+                    Message = $"Candidate updated: {updatedCandidate.FullName}"
+                };
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                await SaveActivityAsync(activityEvent);
 
-            return MapToResponseDto(updatedCandidate!);
+                return MapToResponseDto(updatedCandidate!);
+            });
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -178,23 +186,26 @@ namespace CandidateManagement.Api.Services
             if (candidate == null)
                 return false;
 
-            var candidateName = candidate.FullName;
-
-            _candidateRepository.Delete(candidate);
-            await _candidateRepository.SaveChangesAsync();
-
-            var activityEvent = new ActivityEvent
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                EventType = ActivityEventTypes.CandidateDeleted,
-                EntityType = ActivityEntityTypes.Candidate,
-                EntityId = id,
-                EntityName = candidateName,
-                Message = $"Candidate deleted: {candidateName}"
-            };
+                var candidateName = candidate.FullName;
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                _candidateRepository.Delete(candidate);
+                await _candidateRepository.SaveChangesAsync();
 
-            return true;
+                var activityEvent = new ActivityEvent
+                {
+                    EventType = ActivityEventTypes.CandidateDeleted,
+                    EntityType = ActivityEntityTypes.Candidate,
+                    EntityId = id,
+                    EntityName = candidateName,
+                    Message = $"Candidate deleted: {candidateName}"
+                };
+
+                await SaveActivityAsync(activityEvent);
+
+                return true;
+            });
         }
 
         public async Task<bool> RemoveSkillFromCandidateAsync(int candidateId, int skillId)
@@ -210,36 +221,39 @@ namespace CandidateManagement.Api.Services
             if (candidateSkill == null)
                 return false;
 
-            var skillName = candidateSkill.Skill.SkillName;
-
-            candidate.CandidateSkills.Remove(candidateSkill);
-
-            _candidateRepository.Update(candidate);
-            await _candidateRepository.SaveChangesAsync();
-
-            var activityEvent = new ActivityEvent
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                EventType = ActivityEventTypes.CandidateSkillRemoved,
-                EntityType = ActivityEntityTypes.Candidate,
-                EntityId = candidate.Id,
-                EntityName = candidate.FullName,
-                Message = $"Skill removed from candidate {candidate.FullName}: {skillName}",
-                Metadata = new Dictionary<string, string>
+                var skillName = candidateSkill.Skill.SkillName;
+
+                candidate.CandidateSkills.Remove(candidateSkill);
+
+                _candidateRepository.Update(candidate);
+                await _candidateRepository.SaveChangesAsync();
+
+                var activityEvent = new ActivityEvent
                 {
-                    ["skillId"] = skillId.ToString(),
-                    ["skillName"] = skillName
-                }
-            };
+                    EventType = ActivityEventTypes.CandidateSkillRemoved,
+                    EntityType = ActivityEntityTypes.Candidate,
+                    EntityId = candidate.Id,
+                    EntityName = candidate.FullName,
+                    Message = $"Skill removed from candidate {candidate.FullName}: {skillName}",
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["skillId"] = skillId.ToString(),
+                        ["skillName"] = skillName
+                    }
+                };
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                await SaveActivityAsync(activityEvent);
 
-            return true;
+                return true;
+            });
         }
 
-        private async Task SaveAndPublishActivityAsync(ActivityEvent activityEvent)
+        private async Task SaveActivityAsync(ActivityEvent activityEvent)
         {
             await _activityLogService.SaveActivityLogAsync(activityEvent);
-            await _activityEventPublisher.PublishAsync(activityEvent);
+            await _outboxService.SaveMessageAsync(activityEvent);
         }
 
         private static CandidateResponseDto MapToResponseDto(Candidate candidate)

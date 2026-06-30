@@ -1,8 +1,8 @@
-﻿using CandidateManagement.Api.DTOs.Skills;
-using CandidateManagement.Api.Messaging;
+using CandidateManagement.Api.DTOs.Skills;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
 using CandidateManagement.Api.Services;
+using CandidateManagement.Api.Services.Interfaces;
 using Moq;
 
 namespace CandidateManagement.Tests.Services
@@ -10,22 +10,36 @@ namespace CandidateManagement.Tests.Services
     public class SkillServiceTests
     {
         private readonly Mock<ISkillRepository> _skillRepositoryMock;
-        private readonly Mock<IActivityEventPublisher> _activityEventPublisherMock;
+        private readonly Mock<IActivityLogService> _activityLogServiceMock;
+        private readonly Mock<IOutboxService> _outboxServiceMock;
+        private readonly Mock<ITransactionManager> _transactionManagerMock;
         private readonly SkillService _skillService;
 
         public SkillServiceTests()
         {
             _skillRepositoryMock = new Mock<ISkillRepository>();
-            _activityEventPublisherMock = new Mock<IActivityEventPublisher>();
+            _activityLogServiceMock = new Mock<IActivityLogService>();
+            _outboxServiceMock = new Mock<IOutboxService>();
+            _transactionManagerMock = new Mock<ITransactionManager>();
+
+            _transactionManagerMock
+                .Setup(manager => manager.ExecuteAsync(It.IsAny<Func<Task<SkillResponseDto>>>()))
+                .Returns<Func<Task<SkillResponseDto>>>(action => action());
+
+            _transactionManagerMock
+                .Setup(manager => manager.ExecuteAsync(It.IsAny<Func<Task<bool>>>()))
+                .Returns<Func<Task<bool>>>(action => action());
+
             _skillService = new SkillService(
                 _skillRepositoryMock.Object,
-                _activityEventPublisherMock.Object);
+                _activityLogServiceMock.Object,
+                _outboxServiceMock.Object,
+                _transactionManagerMock.Object);
         }
 
         [Fact]
         public async Task CreateAsync_WhenSkillIsNew_CreatesSkill()
         {
-            // Arrange
             var dto = new CreateSkillDto
             {
                 SkillName = "C# programming"
@@ -43,10 +57,8 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.SaveChangesAsync())
                 .Returns(Task.CompletedTask);
 
-            // Act
             var result = await _skillService.CreateAsync(dto);
 
-            // Assert
             Assert.NotNull(result);
             Assert.Equal("C# programming", result.SkillName);
 
@@ -62,7 +74,6 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task CreateAsync_WhenSkillExists_ThrowsError()
         {
-            // Arrange
             var dto = new CreateSkillDto
             {
                 SkillName = "English language"
@@ -72,11 +83,9 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.SkillNameExistsAsync("English language"))
                 .ReturnsAsync(true);
 
-            // Act
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 _skillService.CreateAsync(dto));
 
-            // Assert
             Assert.Equal("Skill with this name already exists.", exception.Message);
 
             _skillRepositoryMock.Verify(
@@ -91,15 +100,12 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task DeleteAsync_WhenSkillMissing_ReturnsFalse()
         {
-            // Arrange
             _skillRepositoryMock
                 .Setup(repo => repo.GetByIdAsync(99))
                 .ReturnsAsync((Skill?)null);
 
-            // Act
             var result = await _skillService.DeleteAsync(99);
 
-            // Assert
             Assert.False(result);
 
             _skillRepositoryMock.Verify(
@@ -114,7 +120,6 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task DeleteAsync_WhenSkillIsAssigned_ThrowsError()
         {
-            // Arrange
             var skill = new Skill
             {
                 Id = 1,
@@ -129,11 +134,9 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.IsSkillAssignedToAnyCandidateAsync(1))
                 .ReturnsAsync(true);
 
-            // Act
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 _skillService.DeleteAsync(1));
 
-            // Assert
             Assert.Equal(
                 "Skill cannot be deleted because it is asigned to one or more candidates.",
                 exception.Message);
@@ -150,7 +153,6 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task DeleteAsync_WhenSkillIsFree_DeletesIt()
         {
-            // Arrange
             var skill = new Skill
             {
                 Id = 1,
@@ -169,10 +171,8 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.SaveChangesAsync())
                 .Returns(Task.CompletedTask);
 
-            // Act
             var result = await _skillService.DeleteAsync(1);
 
-            // Assert
             Assert.True(result);
 
             _skillRepositoryMock.Verify(

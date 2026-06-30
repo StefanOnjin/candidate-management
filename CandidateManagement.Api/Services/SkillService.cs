@@ -1,6 +1,5 @@
 ﻿using CandidateManagement.Api.Services.Interfaces;
 using CandidateManagement.Api.DTOs.Skills;
-using CandidateManagement.Api.Messaging;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
 using CandidateManagement.Messaging;
@@ -10,17 +9,20 @@ namespace CandidateManagement.Api.Services
     public class SkillService : ISkillService
     {
         private readonly ISkillRepository _skillRepository;
-        private readonly IActivityEventPublisher _activityEventPublisher;
         private readonly IActivityLogService _activityLogService;
+        private readonly IOutboxService _outboxService;
+        private readonly ITransactionManager _transactionManager;
 
         public SkillService(
             ISkillRepository skillRepository,
-            IActivityEventPublisher activityEventPublisher,
-            IActivityLogService activityLogService)
+            IActivityLogService activityLogService,
+            IOutboxService outboxService,
+            ITransactionManager transactionManager)
         {
             _skillRepository = skillRepository;
-            _activityEventPublisher = activityEventPublisher;
             _activityLogService = activityLogService;
+            _outboxService = outboxService;
+            _transactionManager = transactionManager;
         }
 
         public async Task<List<SkillResponseDto>> GetAllAsync()
@@ -49,26 +51,29 @@ namespace CandidateManagement.Api.Services
             if (skillExists)
                 throw new InvalidOperationException("Skill with this name already exists.");
 
-            var skill = new Skill
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                SkillName = skillName
-            };
+                var skill = new Skill
+                {
+                    SkillName = skillName
+                };
 
-            await _skillRepository.AddAsync(skill);
-            await _skillRepository.SaveChangesAsync();
+                await _skillRepository.AddAsync(skill);
+                await _skillRepository.SaveChangesAsync();
 
-            var activityEvent = new ActivityEvent
-            {
-                EventType = ActivityEventTypes.SkillCreated,
-                EntityType = ActivityEntityTypes.Skill,
-                EntityId = skill.Id,
-                EntityName = skill.SkillName,
-                Message = $"New skill added: {skill.SkillName}"
-            };
+                var activityEvent = new ActivityEvent
+                {
+                    EventType = ActivityEventTypes.SkillCreated,
+                    EntityType = ActivityEntityTypes.Skill,
+                    EntityId = skill.Id,
+                    EntityName = skill.SkillName,
+                    Message = $"New skill added: {skill.SkillName}"
+                };
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                await SaveActivityAsync(activityEvent);
 
-            return MapToResponseDto(skill);
+                return MapToResponseDto(skill);
+            });
         }
 
         public async Task<SkillResponseDto?> UpdateAsync(int id, CreateSkillDto dto)
@@ -89,23 +94,26 @@ namespace CandidateManagement.Api.Services
             if (skillNameUsedByAnotherSkill)
                 throw new InvalidOperationException("Skill with this name already exists.");
 
-            skill.SkillName = skillName;
-
-            _skillRepository.Update(skill);
-            await _skillRepository.SaveChangesAsync();
-
-            var activityEvent = new ActivityEvent
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                EventType = ActivityEventTypes.SkillUpdated,
-                EntityType = ActivityEntityTypes.Skill,
-                EntityId = skill.Id,
-                EntityName = skill.SkillName,
-                Message = $"Skill updated: {skill.SkillName}"
-            };
+                skill.SkillName = skillName;
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                _skillRepository.Update(skill);
+                await _skillRepository.SaveChangesAsync();
 
-            return MapToResponseDto(skill);
+                var activityEvent = new ActivityEvent
+                {
+                    EventType = ActivityEventTypes.SkillUpdated,
+                    EntityType = ActivityEntityTypes.Skill,
+                    EntityId = skill.Id,
+                    EntityName = skill.SkillName,
+                    Message = $"Skill updated: {skill.SkillName}"
+                };
+
+                await SaveActivityAsync(activityEvent);
+
+                return MapToResponseDto(skill);
+            });
         }
 
         public async Task<bool> DeleteAsync(int id)
@@ -120,29 +128,32 @@ namespace CandidateManagement.Api.Services
             if (isItAssigned)
                 throw new InvalidOperationException("Skill cannot be deleted because it is asigned to one or more candidates.");
 
-            var skillName = skill.SkillName;
-
-            _skillRepository.Delete(skill);
-            await _skillRepository.SaveChangesAsync();
-
-            var activityEvent = new ActivityEvent
+            return await _transactionManager.ExecuteAsync(async () =>
             {
-                EventType = ActivityEventTypes.SkillDeleted,
-                EntityType = ActivityEntityTypes.Skill,
-                EntityId = id,
-                EntityName = skillName,
-                Message = $"Skill deleted: {skillName}"
-            };
+                var skillName = skill.SkillName;
 
-            await SaveAndPublishActivityAsync(activityEvent);
+                _skillRepository.Delete(skill);
+                await _skillRepository.SaveChangesAsync();
 
-            return true;
+                var activityEvent = new ActivityEvent
+                {
+                    EventType = ActivityEventTypes.SkillDeleted,
+                    EntityType = ActivityEntityTypes.Skill,
+                    EntityId = id,
+                    EntityName = skillName,
+                    Message = $"Skill deleted: {skillName}"
+                };
+
+                await SaveActivityAsync(activityEvent);
+
+                return true;
+            });
         }
 
-        private async Task SaveAndPublishActivityAsync(ActivityEvent activityEvent)
+        private async Task SaveActivityAsync(ActivityEvent activityEvent)
         {
             await _activityLogService.SaveActivityLogAsync(activityEvent);
-            await _activityEventPublisher.PublishAsync(activityEvent);
+            await _outboxService.SaveMessageAsync(activityEvent);
         }
 
         private static SkillResponseDto MapToResponseDto(Skill skill)

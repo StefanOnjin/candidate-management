@@ -1,8 +1,8 @@
-﻿using CandidateManagement.Api.DTOs.Candidates;
-using CandidateManagement.Api.Messaging;
+using CandidateManagement.Api.DTOs.Candidates;
 using CandidateManagement.Api.Models;
 using CandidateManagement.Api.Repositories.Interfaces;
 using CandidateManagement.Api.Services;
+using CandidateManagement.Api.Services.Interfaces;
 using Moq;
 
 namespace CandidateManagement.Tests.Services
@@ -11,26 +11,39 @@ namespace CandidateManagement.Tests.Services
     {
         private readonly Mock<ICandidateRepository> _candidateRepositoryMock;
         private readonly Mock<ISkillRepository> _skillRepositoryMock;
-        private readonly Mock<IActivityEventPublisher> _activityEventPublisherMock;
+        private readonly Mock<IActivityLogService> _activityLogServiceMock;
+        private readonly Mock<IOutboxService> _outboxServiceMock;
+        private readonly Mock<ITransactionManager> _transactionManagerMock;
         private readonly CandidateService _candidateService;
 
         public CandidateServiceTests()
         {
             _candidateRepositoryMock = new Mock<ICandidateRepository>();
             _skillRepositoryMock = new Mock<ISkillRepository>();
-            _activityEventPublisherMock = new Mock<IActivityEventPublisher>();
+            _activityLogServiceMock = new Mock<IActivityLogService>();
+            _outboxServiceMock = new Mock<IOutboxService>();
+            _transactionManagerMock = new Mock<ITransactionManager>();
+
+            _transactionManagerMock
+                .Setup(manager => manager.ExecuteAsync(It.IsAny<Func<Task<CandidateResponseDto>>>()))
+                .Returns<Func<Task<CandidateResponseDto>>>(action => action());
+
+            _transactionManagerMock
+                .Setup(manager => manager.ExecuteAsync(It.IsAny<Func<Task<bool>>>()))
+                .Returns<Func<Task<bool>>>(action => action());
 
             _candidateService = new CandidateService(
                 _candidateRepositoryMock.Object,
                 _skillRepositoryMock.Object,
-                _activityEventPublisherMock.Object
+                _activityLogServiceMock.Object,
+                _outboxServiceMock.Object,
+                _transactionManagerMock.Object
             );
         }
 
         [Fact]
         public async Task CreateAsync_WithValidData_CreatesCandidate()
         {
-            // Arrange
             var dto = new CreateCandidateDto
             {
                 FullName = "Stefan Onjin",
@@ -73,7 +86,7 @@ namespace CandidateManagement.Tests.Services
 
             _candidateRepositoryMock
                 .Setup(repo => repo.GetByIdWithSkillsAsync(1))
-                .ReturnsAsync((int id) =>
+                .ReturnsAsync(() =>
                 {
                     return new Candidate
                     {
@@ -91,10 +104,8 @@ namespace CandidateManagement.Tests.Services
                     };
                 });
 
-            // Act
             var result = await _candidateService.CreateAsync(dto);
 
-            // Assert
             Assert.NotNull(result);
             Assert.Equal("Stefan Onjin", result.FullName);
             Assert.Equal("stefan.onjin@example.com", result.EmailAddress);
@@ -112,7 +123,6 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task CreateAsync_WithExistingEmail_ThrowsError()
         {
-            // Arrange
             var dto = new CreateCandidateDto
             {
                 FullName = "Dragan Draganovic",
@@ -126,11 +136,9 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.EmailExistsAsync(dto.EmailAddress))
                 .ReturnsAsync(true);
 
-            // Act
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 _candidateService.CreateAsync(dto));
 
-            // Assert
             Assert.Equal("Candidate with this email already exists.", exception.Message);
 
             _candidateRepositoryMock.Verify(
@@ -145,7 +153,6 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task CreateAsync_WithMissingSkill_ThrowsError()
         {
-            // Arrange
             var dto = new CreateCandidateDto
             {
                 FullName = "Stanko Stankovic",
@@ -169,11 +176,9 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.GetByIdsAsync(It.IsAny<List<int>>()))
                 .ReturnsAsync(existingSkills);
 
-            // Act
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
                 _candidateService.CreateAsync(dto));
 
-            // Assert
             Assert.Equal("One or more skills do not exist.", exception.Message);
 
             _candidateRepositoryMock.Verify(
@@ -188,15 +193,12 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task DeleteAsync_WhenCandidateMissing_ReturnsFalse()
         {
-            // Arrange
             _candidateRepositoryMock
                 .Setup(repo => repo.GetByIdAsync(99))
                 .ReturnsAsync((Candidate?)null);
 
-            // Act
             var result = await _candidateService.DeleteAsync(99);
 
-            // Assert
             Assert.False(result);
 
             _candidateRepositoryMock.Verify(
@@ -211,7 +213,6 @@ namespace CandidateManagement.Tests.Services
         [Fact]
         public async Task DeleteAsync_WhenCandidateExists_DeletesIt()
         {
-            // Arrange
             var candidate = new Candidate
             {
                 Id = 1,
@@ -229,10 +230,8 @@ namespace CandidateManagement.Tests.Services
                 .Setup(repo => repo.SaveChangesAsync())
                 .Returns(Task.CompletedTask);
 
-            // Act
             var result = await _candidateService.DeleteAsync(1);
 
-            // Assert
             Assert.True(result);
 
             _candidateRepositoryMock.Verify(
